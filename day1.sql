@@ -1,24 +1,29 @@
-create database Bank_Information_System;
-use Bank_Information_System;
+CREATE DATABASE Bank_Information_System;
+GO
+
+USE Bank_Information_System;
+GO
 
 CREATE TABLE cities (
-    id INT IDENTITY PRIMARY KEY,
+    id INT PRIMARY KEY,
     city_name NVARCHAR(100) NOT NULL
 );
+GO
 
 CREATE TABLE client (
-    id INT IDENTITY PRIMARY KEY,
+    id INT PRIMARY KEY,
     name NVARCHAR(100) NOT NULL,
     surname NVARCHAR(100) NOT NULL,
     phone NVARCHAR(20),
     city_id INT NOT NULL,
     address NVARCHAR(MAX),
-    CONSTRAINT FK_client_city FOREIGN KEY (city_id)
-        REFERENCES cities(id)
+    CONSTRAINT FK_client_city
+        FOREIGN KEY (city_id) REFERENCES cities(id)
 );
+GO
 
 CREATE TABLE account (
-    id INT IDENTITY PRIMARY KEY,
+    id INT PRIMARY KEY,
     client_id INT NOT NULL,
     account_name NVARCHAR(100) NOT NULL,
     creating_date DATETIME DEFAULT GETDATE(),
@@ -26,27 +31,29 @@ CREATE TABLE account (
     CONSTRAINT FK_account_client
         FOREIGN KEY (client_id) REFERENCES client(id)
 );
-
+GO
 
 CREATE TABLE account_detail (
-    id INT IDENTITY PRIMARY KEY,
-    account_id INT,
+    id INT PRIMARY KEY,
+    account_id INT NOT NULL,
     creating_date DATETIME DEFAULT GETDATE(),
     value DECIMAL(18,2),
-    CONSTRAINT FK_detail_account FOREIGN KEY (account_id)
-        REFERENCES account(id)
+    CONSTRAINT FK_detail_account
+        FOREIGN KEY (account_id) REFERENCES account(id)
 );
+GO
 
 CREATE TABLE account_cache (
-    id INT IDENTITY PRIMARY KEY,
-    account_id INT UNIQUE,
+    id INT PRIMARY KEY,
+    account_id INT UNIQUE NOT NULL,
     balance DECIMAL(18,2) DEFAULT 0,
-    CONSTRAINT FK_cache_account FOREIGN KEY (account_id)
-        REFERENCES account(id)
+    CONSTRAINT FK_cache_account
+        FOREIGN KEY (account_id) REFERENCES account(id)
 );
+GO
 
 CREATE TABLE log (
-    id INT IDENTITY PRIMARY KEY,
+    id INT PRIMARY KEY,
     table_name NVARCHAR(100) NOT NULL,
     field NVARCHAR(100) NOT NULL,
     old_value NVARCHAR(MAX),
@@ -54,12 +61,14 @@ CREATE TABLE log (
     changed_at DATETIME DEFAULT GETDATE() NOT NULL,
     record_id INT NOT NULL
 );
-
+GO
 
 -- Index on IBAN
 CREATE INDEX idx_account_iban
 ON account(IBAN);
+GO
 
 -- Index on foreign key client_id
 CREATE INDEX idx_account_client_id
 ON account(client_id);
+GO
