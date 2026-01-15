@@ -1,26 +1,39 @@
+/* ============================
+   DAY 4: TransferMoney (IBAN inputs) + transaction
+   ============================ */
 
 USE Bank_Information_System;
 GO
 
-
--- PROCEDURE: TransferMoney
--- Handles money transfers between accounts safely
--- Checks balance, debits sender, credits receiver
-
-CREATE OR ALTER PROCEDURE TransferMoney
-    @FromAccountId INT,
-    @ToAccountId INT,
-    @Amount DECIMAL(18,2)
+CREATE OR ALTER PROCEDURE dbo.TransferMoney
+    @FromIBAN NVARCHAR(34),
+    @ToIBAN   NVARCHAR(34),
+    @Amount   DECIMAL(18,2)
 AS
 BEGIN
     SET NOCOUNT ON;
 
+    DECLARE @FromAccountId INT;
+    DECLARE @ToAccountId   INT;
+
+    -- Validate amount
+    IF @Amount IS NULL OR @Amount <= 0
+        THROW 50010, 'Amount must be > 0', 1;
+
+    -- Resolve IBANs to account IDs
+    SELECT @FromAccountId = id FROM dbo.account WHERE IBAN = @FromIBAN;
+    SELECT @ToAccountId   = id FROM dbo.account WHERE IBAN = @ToIBAN;
+
+    IF @FromAccountId IS NULL OR @ToAccountId IS NULL
+        THROW 50011, 'Incorrect (sender or recipient) IBAN', 1;
+
     BEGIN TRY
         BEGIN TRANSACTION;
 
-        -- Check sufficient balance
+        -- Check sufficient balance in sender
         IF NOT EXISTS (
-            SELECT 1 FROM account_cache
+            SELECT 1
+            FROM dbo.account_cache
             WHERE account_id = @FromAccountId
               AND balance >= @Amount
         )
@@ -28,61 +41,48 @@ BEGIN
             THROW 50001, 'Insufficient balance', 1;
         END;
 
-        -- Debit sender account
-        INSERT INTO account_detail (id, account_id, value)
-        VALUES ((SELECT ISNULL(MAX(id),0)+1 FROM account_detail), @FromAccountId, -@Amount);
+        -- Insert debit and credit (two INSERTs required)
+        DECLARE @id1 INT = (SELECT ISNULL(MAX(id),0) + 1 FROM dbo.account_detail);
+        DECLARE @id2 INT = @id1 + 1;
 
-        -- Credit receiver account
-        INSERT INTO account_detail (id, account_id, value)
-        VALUES ((SELECT ISNULL(MAX(id),0)+1 FROM account_detail), @ToAccountId, @Amount);
+        INSERT INTO dbo.account_detail (id, account_id, value)
+        VALUES (@id1, @FromAccountId, -@Amount);
+
+        INSERT INTO dbo.account_detail (id, account_id, value)
+        VALUES (@id2, @ToAccountId, @Amount);
 
         COMMIT TRANSACTION;
     END TRY
     BEGIN CATCH
-        -- Rollback transaction if any error occurs
-        IF @@TRANCOUNT > 0
-            ROLLBACK TRANSACTION;
-
-        -- Re-throw error
+        IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION;
         THROW;
     END CATCH
 END;
 GO
+/*Test*/
 
-
--- TRIGGER: trg_UpdateAccountBalance
--- Automatically updates account_cache.balance
--- whenever a new record is inserted into account_detail
-
-CREATE OR ALTER TRIGGER trg_UpdateAccountBalance
-ON account_detail
-AFTER INSERT
-AS
-BEGIN
-    SET NOCOUNT ON;
-
-    UPDATE ac
-    SET ac.balance = ac.balance + i.value
-    FROM account_cache ac
-    JOIN inserted i
-        ON ac.account_id = i.account_id;
-END;
+EXEC sp_helptext 'dbo.TransferMoney';
 GO
 
-
--- TESTING SECTION
--- Check balances before transfer
--- Execute a test transfer
--- Check transaction history and updated balances
-
-SELECT * FROM account_cache;
-GO
-
-EXEC TransferMoney @FromAccountId = 1, @ToAccountId = 2, @Amount = 200;
-GO
-
-SELECT * 
-FROM account_detail
-WHERE account_id IN (1,2)
+SELECT TOP (5) id, IBAN
+FROM dbo.account
 ORDER BY id;
 GO
+
+-- Test 1: invalid sender IBAN (should throw "Incorrect IBAN")
+DECLARE @toIBAN NVARCHAR(34);
+
+SELECT TOP (1) @toIBAN = IBAN
+FROM dbo.account
+ORDER BY id;
+
+EXEC dbo.TransferMoney
+    @FromIBAN = N'LT000000000000000000000000000000',
+    @ToIBAN   = @toIBAN,
+    @Amount   = 10;
+GO
+
+
+
+
+

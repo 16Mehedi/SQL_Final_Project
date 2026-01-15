@@ -1,68 +1,79 @@
-﻿use Bank_Information_System;
-Go
+﻿/* ============================
+   DAY 2: Insert data + Views
+   ============================ */
 
--- Insert  cities
-INSERT INTO cities (id, city_name) VALUES
-(1, 'Vilnius'),
-(2, 'Kaunas'),
-(3, 'Klaipėda'),
-(4, 'Šiauliai'),
-(5, 'Panevėžys');
+USE Bank_Information_System;
+GO
 
--- Insert clients 
-INSERT INTO client (id, name, surname, phone, city_id, address) VALUES
-(1, 'Jonas',   'Petrauskas',    '+37012345678', 1, 'Gedimino pr. 1'),
-(2, 'Aistė',   'Kazlauskaitė',  '+37012345677', 2, 'Laisvės al. 10'),
-(3, 'Mantas',  'Jankauskas',    '+37012345676', 3, 'Taikos pr. 25'),
-(4, 'Rūta',    'Vaitkevičienė', '+37012345675', 4, 'Vilniaus g. 7'),
-(5, 'Tomas',   'Brazinskas',    '+37012345674', 5, 'Respublikos g. 12');
+-- Cities
+INSERT INTO dbo.cities (id, city_name) VALUES
+(1, N'Vilnius'),
+(2, N'Kaunas'),
+(3, N'Klaipėda'),
+(4, N'Šiauliai'),
+(5, N'Panevėžys');
+GO
 
--- Insert accounts
-INSERT INTO account (id, client_id, account_name, IBAN) VALUES
-(1, 1, 'Personal Account', 'LT121000011101001000'),
-(2, 1, 'Savings Account',  'LT121000011101001001'),
-(3, 2, 'Salary Account',   'LT121000011101001002'),
-(4, 3, 'Business Account', 'LT121000011101001003'),
-(5, 4, 'Personal Account', 'LT121000011101001004'),
-(6, 5, 'Savings Account',  'LT121000011101001005');
+-- Clients
+INSERT INTO dbo.client (id, name, surname, phone, city_id, address) VALUES
+(1, N'Jonas',   N'Petrauskas',    N'+37012345678', 1, N'Gedimino pr. 1'),
+(2, N'Aistė',   N'Kazlauskaitė',  N'+37012345677', 2, N'Laisvės al. 10'),
+(3, N'Mantas',  N'Jankauskas',    N'+37012345676', 3, N'Taikos pr. 25'),
+(4, N'Rūta',    N'Vaitkevičienė', N'+37012345675', 4, N'Vilniaus g. 7'),
+(5, N'Tomas',   N'Brazinskas',    N'+37012345674', 5, N'Respublikos g. 12');
+GO
 
--- Insert account cache (balances)
-INSERT INTO account_cache (id, account_id, balance) VALUES
+-- Accounts (IBANs will be created by your Day3 procedure later too; here we seed fixed ones)
+INSERT INTO dbo.account (id, client_id, account_name, IBAN) VALUES
+(1, 1, N'Personal Account', N'LT121000011101001000'),
+(2, 1, N'Savings Account',  N'LT121000011101001001'),
+(3, 2, N'Salary Account',   N'LT121000011101001002'),
+(4, 3, N'Business Account', N'LT121000011101001003'),
+(5, 4, N'Personal Account', N'LT121000011101001004'),
+(6, 5, N'Savings Account',  N'LT121000011101001005');
+GO
+
+-- Account cache balances (seed)
+INSERT INTO dbo.account_cache (id, account_id, balance) VALUES
 (1, 1, 1500.00),
 (2, 2, 3500.50),
 (3, 3, 2200.00),
 (4, 4, 10000.00),
 (5, 5, 800.00),
 (6, 6, 1200.00);
-Go
+GO
 
-
--- View: Customer_data
-CREATE VIEW Customer_data AS
+/* View 1: Customer_data
+   Required: customer_name, surname, city_name, address, phone
+*/
+CREATE OR ALTER VIEW dbo.Customer_data AS
 SELECT
-    c.id        AS client_id,
-    c.name,
+    c.name       AS customer_name,
     c.surname,
-    c.phone,
+    ci.city_name,
     c.address,
-    ci.city_name
-FROM client c
-JOIN cities ci ON c.city_id = ci.id;
-Go
+    c.phone
+FROM dbo.client c
+JOIN dbo.cities ci ON ci.id = c.city_id;
+GO
 
--- View: Client_accounts
-CREATE VIEW Client_accounts AS
+/* View 2: Client_accounts
+   Required: client.ID, name, surname, account_type_name, IBAN, balance
+*/
+CREATE OR ALTER VIEW dbo.Client_accounts AS
 SELECT
     c.id        AS client_id,
     c.name,
     c.surname,
-    a.id        AS account_id,
-    a.account_name,
+    a.account_name AS account_type_name,
     a.IBAN,
-    a.creating_date
-FROM client c
-JOIN account a ON c.id = a.client_id;
-Go
+    ISNULL(ac.balance, 0) AS balance
+FROM dbo.client c
+JOIN dbo.account a ON a.client_id = c.id
+LEFT JOIN dbo.account_cache ac ON ac.account_id = a.id;
+GO
 
-SELECT * FROM Customer_data;
-SELECT * FROM Client_accounts;
+-- Quick checks
+SELECT * FROM dbo.Customer_data;
+SELECT * FROM dbo.Client_accounts;
+GO
