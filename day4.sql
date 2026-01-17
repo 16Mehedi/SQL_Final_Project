@@ -1,7 +1,6 @@
-/* ============================
-   DAY 4: TransferMoney (IBAN inputs) + transaction
-   ============================ */
-
+/* ============================================================
+   TASK 4c & TASK 4d: Transfer with transaction
+   ============================================================ */
 USE Bank_Information_System;
 GO
 
@@ -13,24 +12,26 @@ AS
 BEGIN
     SET NOCOUNT ON;
 
-    DECLARE @FromAccountId INT;
-    DECLARE @ToAccountId   INT;
+    DECLARE @FromAccountId INT, @ToAccountId INT;
 
-    -- Validate amount
     IF @Amount IS NULL OR @Amount <= 0
-        THROW 50010, 'Amount must be > 0', 1;
+    BEGIN
+        RAISERROR('Amount must be > 0', 16, 1);
+        RETURN;
+    END
 
-    -- Resolve IBANs to account IDs
     SELECT @FromAccountId = id FROM dbo.account WHERE IBAN = @FromIBAN;
     SELECT @ToAccountId   = id FROM dbo.account WHERE IBAN = @ToIBAN;
 
     IF @FromAccountId IS NULL OR @ToAccountId IS NULL
-        THROW 50011, 'Incorrect (sender or recipient) IBAN', 1;
+    BEGIN
+        RAISERROR('Incorrect IBAN', 16, 1);
+        RETURN;
+    END
 
     BEGIN TRY
         BEGIN TRANSACTION;
 
-        -- Check sufficient balance in sender
         IF NOT EXISTS (
             SELECT 1
             FROM dbo.account_cache
@@ -38,10 +39,11 @@ BEGIN
               AND balance >= @Amount
         )
         BEGIN
-            THROW 50001, 'Insufficient balance', 1;
-        END;
+            RAISERROR('Insufficient balance', 16, 1);
+            ROLLBACK TRANSACTION;
+            RETURN;
+        END
 
-        -- Insert debit and credit (two INSERTs required)
         DECLARE @id1 INT = (SELECT ISNULL(MAX(id),0) + 1 FROM dbo.account_detail);
         DECLARE @id2 INT = @id1 + 1;
 
@@ -55,34 +57,12 @@ BEGIN
     END TRY
     BEGIN CATCH
         IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION;
-        THROW;
+
+        DECLARE @ErrMsg NVARCHAR(4000) = ERROR_MESSAGE();
+        DECLARE @ErrSev INT = ERROR_SEVERITY();
+        DECLARE @ErrState INT = ERROR_STATE();
+
+        RAISERROR(@ErrMsg, @ErrSev, @ErrState);
     END CATCH
 END;
 GO
-/*Test*/
-
-EXEC sp_helptext 'dbo.TransferMoney';
-GO
-
-SELECT TOP (5) id, IBAN
-FROM dbo.account
-ORDER BY id;
-GO
-
--- Test 1: invalid sender IBAN (should throw "Incorrect IBAN")
-DECLARE @toIBAN NVARCHAR(34);
-
-SELECT TOP (1) @toIBAN = IBAN
-FROM dbo.account
-ORDER BY id;
-
-EXEC dbo.TransferMoney
-    @FromIBAN = N'LT000000000000000000000000000000',
-    @ToIBAN   = @toIBAN,
-    @Amount   = 10;
-GO
-
-
-
-
-

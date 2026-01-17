@@ -1,21 +1,22 @@
-/* ============================
-   DAY 1: Database + Tables (UML)
-   ============================ */
+/* ============================================================
+   TASK 1: Create database + tables (according to UML)
+   ============================================================ */
 
-IF DB_ID('Bank_Information_System') IS NULL
+IF DB_ID(N'Bank_Information_System') IS NULL
+BEGIN
     CREATE DATABASE Bank_Information_System;
+END
 GO
 
 USE Bank_Information_System;
 GO
 
--- Drop tables if you are re-running from scratch (optional, safe order)
-IF OBJECT_ID('dbo.account_detail','U') IS NOT NULL DROP TABLE dbo.account_detail;
-IF OBJECT_ID('dbo.account_cache','U')  IS NOT NULL DROP TABLE dbo.account_cache;
-IF OBJECT_ID('dbo.account','U')        IS NOT NULL DROP TABLE dbo.account;
-IF OBJECT_ID('dbo.client','U')         IS NOT NULL DROP TABLE dbo.client;
-IF OBJECT_ID('dbo.cities','U')         IS NOT NULL DROP TABLE dbo.cities;
-IF OBJECT_ID('dbo.[log]','U')          IS NOT NULL DROP TABLE dbo.[log];
+IF OBJECT_ID('dbo.account_detail', 'U') IS NOT NULL DROP TABLE dbo.account_detail;
+IF OBJECT_ID('dbo.account_cache',  'U') IS NOT NULL DROP TABLE dbo.account_cache;
+IF OBJECT_ID('dbo.account',        'U') IS NOT NULL DROP TABLE dbo.account;
+IF OBJECT_ID('dbo.client',         'U') IS NOT NULL DROP TABLE dbo.client;
+IF OBJECT_ID('dbo.cities',         'U') IS NOT NULL DROP TABLE dbo.cities;
+IF OBJECT_ID('dbo.[log]',          'U') IS NOT NULL DROP TABLE dbo.[log];
 GO
 
 CREATE TABLE dbo.cities (
@@ -62,9 +63,6 @@ CREATE TABLE dbo.account_cache (
 );
 GO
 
-/* UML LOG TABLE (PDF):
-   log(ID, table, field, old_value, timestamp, record_id)
-*/
 CREATE TABLE dbo.[log] (
     id INT IDENTITY(1,1) PRIMARY KEY,
     [table] NVARCHAR(100) NOT NULL,
@@ -75,7 +73,11 @@ CREATE TABLE dbo.[log] (
 );
 GO
 
--- Indexes (requirement #2)
-CREATE INDEX idx_account_iban ON dbo.account(IBAN);
+/* ============================================================
+   TASK 2: Create needed indexing fields + join tables
+   ============================================================ */
+
 CREATE INDEX idx_account_client_id ON dbo.account(client_id);
+CREATE INDEX idx_client_city_id ON dbo.client(city_id);
+CREATE INDEX idx_account_detail_account_id ON dbo.account_detail(account_id);
 GO

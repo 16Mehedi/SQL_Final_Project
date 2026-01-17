@@ -1,14 +1,9 @@
-/* ============================
-   DAY 5: Triggers + Get_by_cities + Test city 14
-   ============================ */
-
+/* ============================================================
+   TASK 4e: Triggers (recalc + logging)
+   ============================================================ */
 USE Bank_Information_System;
 GO
 
-/* ------------------------------------------------------------
-   Trigger: Recalculate account_cache after INSERT/UPDATE/DELETE on account_detail
-   Requirement: recalculate balance each time (PDF page 2) :contentReference[oaicite:8]{index=8}
-   ------------------------------------------------------------ */
 CREATE OR ALTER TRIGGER dbo.trg_account_detail_recalc_cache
 ON dbo.account_detail
 AFTER INSERT, UPDATE, DELETE
@@ -43,18 +38,6 @@ BEGIN
 END;
 GO
 
-
-/* ------------------------------------------------------------
-   LOGGING TRIGGERS (Requirement: log any table change;
-   if record is new -> old_value = 'NEW') :contentReference[oaicite:9]{index=9}
-
-   We log:
-   - INSERT: field='*', old_value='NEW'
-   - DELETE: field='*', old_value='DELETED'
-   - UPDATE: one row per changed column, old_value from deleted
-   ------------------------------------------------------------ */
-
--- Cities
 CREATE OR ALTER TRIGGER dbo.trg_log_cities
 ON dbo.cities
 AFTER INSERT, UPDATE, DELETE
@@ -79,7 +62,6 @@ BEGIN
 END;
 GO
 
--- Client
 CREATE OR ALTER TRIGGER dbo.trg_log_client
 ON dbo.client
 AFTER INSERT, UPDATE, DELETE
@@ -124,7 +106,6 @@ BEGIN
 END;
 GO
 
--- Account
 CREATE OR ALTER TRIGGER dbo.trg_log_account
 ON dbo.account
 AFTER INSERT, UPDATE, DELETE
@@ -165,7 +146,6 @@ BEGIN
 END;
 GO
 
--- Account_cache
 CREATE OR ALTER TRIGGER dbo.trg_log_account_cache
 ON dbo.account_cache
 AFTER INSERT, UPDATE, DELETE
@@ -195,7 +175,6 @@ BEGIN
 END;
 GO
 
--- Account_detail
 CREATE OR ALTER TRIGGER dbo.trg_log_account_detail
 ON dbo.account_detail
 AFTER INSERT, UPDATE, DELETE
@@ -232,10 +211,10 @@ END;
 GO
 
 
-/* ------------------------------------------------------------
-   Function: Get_by_cities(@city_id) (Table Valued)
-   Requirement: return name, surname, total balance for clients in city :contentReference[oaicite:10]{index=10}
-   ------------------------------------------------------------ */
+/* ============================================================
+   TASK 4f: Get_by_cities + example city 14
+   ============================================================ */
+
 CREATE OR ALTER FUNCTION dbo.Get_by_cities (@city_id INT)
 RETURNS TABLE
 AS
@@ -253,9 +232,6 @@ RETURN
 );
 GO
 
-/* ------------------------------------------------------------
-   Test: City 14 = Siauliai (as PDF example) :contentReference[oaicite:11]{index=11}
-   ------------------------------------------------------------ */
 IF NOT EXISTS (SELECT 1 FROM dbo.cities WHERE id = 14)
 BEGIN
     INSERT INTO dbo.cities (id, city_name)
@@ -263,7 +239,48 @@ BEGIN
 END;
 GO
 
-SELECT * FROM dbo.Get_by_cities(14);
+IF NOT EXISTS (SELECT 1 FROM dbo.client WHERE id = 14)
+BEGIN
+    INSERT INTO dbo.client (id, name, surname, phone, city_id, address)
+    VALUES (14, N'Thomas', N'Abc', N'+37000000014', 14, N'Siauliai address');
+END;
+GO
+
+IF NOT EXISTS (SELECT 1 FROM dbo.account WHERE id = 14)
+BEGIN
+    INSERT INTO dbo.account (id, client_id, account_name, IBAN)
+    VALUES (14, 14, N'Personal Account', dbo.GenerateIBAN(14));
+END;
+GO
+
+IF NOT EXISTS (SELECT 1 FROM dbo.account_cache WHERE account_id = 14)
+BEGIN
+    INSERT INTO dbo.account_cache (id, account_id, balance)
+    VALUES ((SELECT ISNULL(MAX(id),0)+1 FROM dbo.account_cache), 14, 126.00);
+END;
+GO
+
+IF NOT EXISTS (SELECT 1 FROM dbo.client WHERE id = 15)
+BEGIN
+    INSERT INTO dbo.client (id, name, surname, phone, city_id, address)
+    VALUES (15, N'Angel', N'BGs', N'+37000000015', 14, N'Siauliai address 2');
+END;
+GO
+
+IF NOT EXISTS (SELECT 1 FROM dbo.account WHERE id = 15)
+BEGIN
+    INSERT INTO dbo.account (id, client_id, account_name, IBAN)
+    VALUES (15, 15, N'Personal Account', dbo.GenerateIBAN(15));
+END;
+GO
+
+IF NOT EXISTS (SELECT 1 FROM dbo.account_cache WHERE account_id = 15)
+BEGIN
+    INSERT INTO dbo.account_cache (id, account_id, balance)
+    VALUES ((SELECT ISNULL(MAX(id),0)+1 FROM dbo.account_cache), 15, 254.00);
+END;
 GO
 
 
+SELECT * FROM dbo.Get_by_cities(14);
+GO
